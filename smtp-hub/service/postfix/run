@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# first, configure and start saslauthd
+sed -i 's/START=no/START=yes/' /etc/default/saslauthd
+sed -i 's/THREADS=5/THREADS=2/' /etc/default/saslauthd
+sed -i 's/^OPTIONS/#OPTIONS/' /etc/default/saslauthd
+echo 'OPTIONS="-c -m /var/spool/postfix/var/run/saslauthd -r"' >> /etc/default/saslauthd
+/etc/init.d/saslauthd start
+
+# Do some logging on tls connections. Possible values: 0..4
+echo 'smtpd_tls_loglevel = 1' >> /etc/postfix/main.cf
+
+# allow AUTH only after tls session has been established
+echo 'smtpd_tls_auth_only = yes' >> /etc/postfix/main.cf
+
+# ciphers
+echo 'smtpd_tls_mandatory_ciphers = high' >> /etc/postfix/main.cf
+echo 'smtpd_tls_mandatory_exclude_ciphers = aNULL, MD5' >> /etc/postfix/main.cf
+echo 'smtpd_tls_security_level = may' >> /etc/postfix/main.cf
+echo 'smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3' >> /etc/postfix/main.cf
+
+# redirect all mails to peter
+echo '/^.*$/ peter' > /etc/postfix/canonical-redirect
+echo '*    local:$myhostname' > /etc/postfix/transport
+
+postmap /etc/postfix/canonical-redirect
+postmap /etc/postfix/transport
+
+echo "canonical_maps = regexp:/etc/postfix/canonical-redirect" >> /etc/postfix/main.cf
+echo 'transport_maps = hash:/etc/postfix/transport' >> /etc/postfix/main.cf
+echo 'local_recipient_maps =' >> /etc/postfix/main.cf
+echo 'luser_relay = peter@$myhostname' >> /etc/postfix/main.cf
+
+# add docker network to 'mynetworks'
+# (allows to send mails without authentication; uncommented by default)
+#sed -i 's/^mynetworks = /mynetworks = 172\.0\.0\.0\/8 /' /etc/postfix/main.cf
+
+# enable SASL auth to smtpd
+echo 'smtpd_sasl_auth_enable = yes' >> /etc/postfix/main.cf
+echo 'smtpd_sasl_type = cyrus' >>  /etc/postfix/main.cf
+# config file for sasl: /etc/postfix/sasl/smtpd.conf (suffix and path added automatically)
+echo 'smtpd_sasl_path = smtpd' >> /etc/postfix/main.cf
+echo 'pwcheck_method: saslauthd' > /etc/postfix/sasl/smtpd.conf
+echo 'mech_list: PLAIN LOGIN' >> /etc/postfix/sasl/smtpd.conf
+
+# enable smtps (note: the default debian-generated self-signed cert is used for this)
+echo 'smtps     inet  n       -       y       -       -       smtpd' >> /etc/postfix/master.cf
+echo '  -o syslog_name=postfix/smtps' >> /etc/postfix/master.cf
+echo '  -o smtpd_tls_wrappermode=yes' >> /etc/postfix/master.cf
+echo '  -o smtpd_sasl_auth_enable=yes' >> /etc/postfix/master.cf
+echo '  -o smtpd_reject_unlisted_recipient=no' >> /etc/postfix/master.cf
+
+# start, and write mail log to stdout
+postfix start
+sleep 2
+tail -f /var/log/mail.log

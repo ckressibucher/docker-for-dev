@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# wait for syslog to be started
+sleep 3 
+echo "start listening to syslog output" | logger
+cat /var/log/syslog
+tail -f /var/log/syslog &
+
+# init mailbox for the user 'peter', and write its data to stdout
+echo "start mail" | mailx -s "first mail" peter
+# wait until mail has been delivered and peter's mailbox file has been created
+sleep 2
+tail -f /var/mail/peter

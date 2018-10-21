@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# set password for user 'peter' (also used as login for smtp auth, PLAIN / LOGIN)
+if [ -z "$EMAIL_PASSWORD" ]; then
+  echo "please set an "'$EMAIL_PASSWORD'
+  exit 1
+fi
+
+echo 'peter:'"$EMAIL_PASSWORD" | chpasswd
+
+exec /usr/bin/runsvdir /etc/service
