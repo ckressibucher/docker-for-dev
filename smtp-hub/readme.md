@@ -1,4 +1,4 @@
-# SMTP / SMTPS mail catcher docker image (based on postfix)
+SMTP / SMTPS mail catcher docker image (based on postfix)
 ====
 
 This is a simple Docker image with a postfix smtpd server configured to
@@ -39,7 +39,7 @@ openssl s_client -crlf -connect localhost:1465
 ```
 
 then, interactively talk to the server. To authenticate, you need the base64-encoded
-username `base64_encode('peter') == 'cGV0ZXI='` and your choosen <password>
+username `base64_encode('peter') == 'cGV0ZXI='` and your choosen `<password>`:
 
 ```
 > 220 ESMTP Postfix
